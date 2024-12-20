@@ -7,6 +7,8 @@ import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -15,8 +17,8 @@ import org.mockito.MockitoAnnotations;
 import java.util.Optional;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.verify;
 
 public class EmployeeTesting {
 
@@ -61,17 +63,19 @@ public class EmployeeTesting {
 
     }
 
+
     @Test
-    public void EmployeeServiceImp_update_MissingIdThrowsException() {
+    public void EmployeeServiceImp_updateEmployee_MissingIdThrowsException(){
+
         Employee employee = Employee.builder()
-                .firstName("Liam")
-                .lastName("L")
-                .age(24)
-                .salary(41000)
-                .emailId("l@yahoo.com")
+                .firstName("Jon")
+                .lastName("Cena")
+                .age(50)
+                .emailId("j@cena.com")
+                .salary(100000000)
                 .build();
 
-        Throwable throwable = assertThrows(EntityNotFoundException.class, ()->
+        Throwable throwable = assertThrows(EntityNotFoundException.class, () ->
                 employeeService.updateEmployee(employee.getId(), employee));
 
         assertThat(throwable).isInstanceOf(EntityNotFoundException.class);
@@ -79,10 +83,86 @@ public class EmployeeTesting {
 
     }
 
-//    invalid ID, -100
-//    ValidationOfChange
+    //    invalid ID, -100
+
+    @ParameterizedTest
+    @ValueSource(longs= {-40l, 0l, -100l, 500l})
+    public void EmployeeServiceImp_updateEmployee_InvalidIds (long id){
+
+        Employee employee = Employee.builder()
+                .id(id)
+                .firstName("max")
+                .lastName("m")
+                .age(25)
+                .emailId("max@gmail.com")
+                .salary(34000)
+                .build();
+        Throwable throwable = assertThrows(EntityNotFoundException.class, () -> employeeService.updateEmployee(employee.getId(), employee));
+        assertThat(throwable).isInstanceOf(EntityNotFoundException.class);
+        assertThat(throwable.getMessage()).isEqualTo("Invalid ID given");
+
+
+
+    }
+
+    //    ValidationOfChange
+    @Test
+    public void EmployeeServiceImpl_updateEmployee_validationOfChange() {
+        Employee oldEmployee = Employee.builder()
+                .id(1L)
+                .firstName("paine")
+                .lastName("p")
+                .age(15)
+                .emailId("p@yahoo.com")
+                .salary(55000)
+                .build();
+
+        Employee newEmployee = Employee.builder()
+                .id(1L)
+                .firstName("tim")
+                .lastName("p")
+                .age(16)
+                .emailId("t@yahoo.com")
+                .salary(52000)
+                .build();
+
+        Mockito.when(employeeRepo.findById(newEmployee.getId())).thenReturn(Optional.of(oldEmployee));
+        Mockito.when(employeeRepo.save(newEmployee)).thenReturn(newEmployee);
+
+        Employee result = employeeService.updateEmployee(newEmployee.getId(), newEmployee);
+        assertNotEquals(oldEmployee, result);
+        assertEquals(newEmployee, result);
+
+    }
+
+
+
+
 //    Delete method
+
+    @Test
+    public void employeeServiceImp_deleteEmployee_Success() {
+        Long id = 1L;
+        Mockito.when(employeeRepo.existsById(id)).thenReturn(true);
+        employeeService.deleteEmployee(id);
+
+        verify(employeeRepo).deleteById(id);
+
+    }
+
+
 //    Delete for invalid ID
+    @ParameterizedTest
+    @ValueSource(longs = {-15l, 0l, -100l, 500l})
+    public void employeeServiceImpl_deleteEmployee_invalidIdThrowsException(long id){
+        Mockito.when(employeeRepo.existsById(id)).thenReturn(false);
+
+        Throwable throwable = assertThrows(EntityNotFoundException.class, ()->
+                employeeService.deleteEmployee(id));
+
+        assertThat(throwable).isInstanceOf(EntityNotFoundException.class);
+        assertThat(throwable.getMessage()).isEqualTo("Employee with id" + id + "not found");
+    }
 
 
 }
